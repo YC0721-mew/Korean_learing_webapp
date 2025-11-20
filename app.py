@@ -136,27 +136,30 @@ with tab3:
                     st.error(f"錯了，是：{target['單字']}")
 
 # ==========================================
-# Tab 4: AI 智慧備課 (除錯版)
+# Tab 4: AI 智慧備課 (精美版)
 # ==========================================
 with tab4:
     st.header("🤖 AI 每日單字生成")
-    st.write("點擊按鈕，AI 會幫你生成 5 個實用韓文單字（包含例句），並直接存入資料庫！")
+    st.markdown("輸入你想學的主題，AI 老師會立刻幫你整理 **5 個單字 + 例句**，並直接存入資料庫！")
     
-    # 顯示目前工具包版本 (檢查有沒有更新成功)
-    st.caption(f"目前 AI 工具版本：{genai.__version__}")
-
     if not has_ai_key:
         st.error("⚠️ 尚未設定 GEMINI_API_KEY。")
     else:
-        topic = st.text_input("想學什麼主題？(例如：旅遊、點餐、職場，留空則隨機)", "生活韓語")
+        # 讓輸入框變漂亮一點，左右排版
+        col_input, col_btn = st.columns([3, 1])
         
-        col_gen, col_debug = st.columns([1, 1])
+        with col_input:
+            topic = st.text_input("想學什麼主題？", "旅遊韓語", placeholder="例如：點餐、美妝、職場...")
         
-        # 正常生成按鈕
-        if col_gen.button("🔮 開始生成"):
-            with st.spinner("AI 老師正在思考中..."):
+        with col_btn:
+            st.write("") # 為了對齊用
+            st.write("") # 為了對齊用
+            start_btn = st.button("🔮 開始生成", use_container_width=True)
+
+        if start_btn:
+            with st.spinner("✨ AI 老師正在翻課本... (約需 5 秒)"):
                 try:
-                    # 嘗試使用 1.5 Flash
+                    # 使用剛剛測試成功的 gemini-2.5-flash
                     model = genai.GenerativeModel('gemini-2.5-flash')
                     prompt = f"""
                     請給我 5 個與「{topic}」相關的韓文單字。
@@ -175,6 +178,7 @@ with tab4:
                     
                     words_list = json.loads(text)
                     
+                    # 寫入資料庫
                     count = 0
                     for item in words_list:
                         if item['word'] not in df['單字'].values:
@@ -188,18 +192,28 @@ with tab4:
                             ])
                             count += 1
                     
-                    st.success(f"🎉 成功新增了 {count} 個單字！")
-                    st.json(words_list)
+                    # --- 顯示區優化開始 ---
+                    st.success(f"🎉 成功新增了 {count} 個單字！已存入「新增與列表」頁面。")
+                    
+                    # 把原本醜醜的 JSON 轉成漂亮的 DataFrame 表格
+                    if count > 0:
+                        st.subheader(f"📝 這是 AI 為你準備的「{topic}」筆記：")
+                        
+                        # 整理一下顯示順序
+                        preview_df = pd.DataFrame(words_list)
+                        # 重新命名欄位讓它顯示中文
+                        preview_df = preview_df.rename(columns={
+                            "word": "單字",
+                            "meaning": "解釋",
+                            "type": "詞性",
+                            "sentence": "例句"
+                        })
+                        
+                        # 顯示表格
+                        st.dataframe(preview_df, use_container_width=True, hide_index=True)
+                    else:
+                        st.warning("這些單字好像都學過囉！（資料庫裡已經有了）")
+                    # --- 顯示區優化結束 ---
                     
                 except Exception as e:
-                    st.error(f"生成失敗：{e}")
-
-        # 除錯按鈕 (如果上面失敗，按這個看原因)
-        if col_debug.button("🛠️ 檢查可用模型"):
-            try:
-                st.info("正在詢問 Google 有哪些模型可用...")
-                models = [m.name for m in genai.list_models()]
-                st.write("✅ 你的 API Key 可以抓到以下模型：")
-                st.code(models)
-            except Exception as e:
-                st.error(f"連線檢查失敗：{e}")
+                    st.error(f"生成有點小狀況，請再試一次 🙏\n錯誤原因：{e}")
