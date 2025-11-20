@@ -136,22 +136,27 @@ with tab3:
                     st.error(f"錯了，是：{target['單字']}")
 
 # ==========================================
-# Tab 4: AI 智慧備課 (全新功能！)
+# Tab 4: AI 智慧備課 (除錯版)
 # ==========================================
 with tab4:
     st.header("🤖 AI 每日單字生成")
     st.write("點擊按鈕，AI 會幫你生成 5 個實用韓文單字（包含例句），並直接存入資料庫！")
     
+    # 顯示目前工具包版本 (檢查有沒有更新成功)
+    st.caption(f"目前 AI 工具版本：{genai.__version__}")
+
     if not has_ai_key:
-        st.error("⚠️ 尚未設定 GEMINI_API_KEY。請去 Streamlit Cloud Settings -> Secrets 設定。")
+        st.error("⚠️ 尚未設定 GEMINI_API_KEY。")
     else:
-        # 使用者可以輸入主題
         topic = st.text_input("想學什麼主題？(例如：旅遊、點餐、職場，留空則隨機)", "生活韓語")
         
-        if st.button("🔮 開始生成 (約需 5-10 秒)"):
+        col_gen, col_debug = st.columns([1, 1])
+        
+        # 正常生成按鈕
+        if col_gen.button("🔮 開始生成"):
             with st.spinner("AI 老師正在思考中..."):
                 try:
-                    # 1. 呼叫 Gemini
+                    # 嘗試使用 1.5 Flash
                     model = genai.GenerativeModel('gemini-1.5-flash')
                     prompt = f"""
                     請給我 5 個與「{topic}」相關的韓文單字。
@@ -164,17 +169,14 @@ with tab4:
                     """
                     response = model.generate_content(prompt)
                     
-                    # 2. 處理回傳文字 (去除可能的 markdown 符號)
                     text = response.text.strip()
                     if text.startswith("```json"):
                         text = text[7:-3]
                     
                     words_list = json.loads(text)
                     
-                    # 3. 寫入資料庫
                     count = 0
                     for item in words_list:
-                        # 檢查是否已經存在 (簡單檢查)
                         if item['word'] not in df['單字'].values:
                             sheet.append_row([
                                 item['word'], 
@@ -186,8 +188,18 @@ with tab4:
                             ])
                             count += 1
                     
-                    st.success(f"🎉 成功新增了 {count} 個單字！快去「列表」查看吧！")
-                    st.json(words_list) # 顯示剛剛生成的內容給你看
+                    st.success(f"🎉 成功新增了 {count} 個單字！")
+                    st.json(words_list)
                     
                 except Exception as e:
-                    st.error(f"生成失敗，請再試一次。錯誤原因：{e}")
+                    st.error(f"生成失敗：{e}")
+
+        # 除錯按鈕 (如果上面失敗，按這個看原因)
+        if col_debug.button("🛠️ 檢查可用模型"):
+            try:
+                st.info("正在詢問 Google 有哪些模型可用...")
+                models = [m.name for m in genai.list_models()]
+                st.write("✅ 你的 API Key 可以抓到以下模型：")
+                st.code(models)
+            except Exception as e:
+                st.error(f"連線檢查失敗：{e}")
