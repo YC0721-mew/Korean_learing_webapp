@@ -152,7 +152,7 @@ with tab4:
             with st.spinner("AI 老師正在思考中..."):
                 try:
                     # 1. 呼叫 Gemini
-                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    model = genai.GenerativeModel('gemini-pro')
                     prompt = f"""
                     請給我 5 個與「{topic}」相關的韓文單字。
                     格式必須是純 JSON Array，不要有 markdown 標記。
